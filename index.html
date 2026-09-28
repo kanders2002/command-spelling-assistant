@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Command Spelling Assistant</title>
+  <meta name="description" content="A free accessibility-friendly tool that spells commands and technical text character by character, including spaces and symbols." />
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #5f6b7a;
+      --border: #dbe2ea;
+      --accent: #3157d5;
+      --accent-hover: #2546b8;
+      --soft: #eef3ff;
+      --success: #eaf8ef;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    .wrap {
+      width: min(980px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 40px 0 56px;
+    }
+    header { text-align: center; margin-bottom: 28px; }
+    h1 { margin: 0 0 10px; font-size: clamp(2rem, 5vw, 3rem); letter-spacing: -0.03em; }
+    .subtitle { max-width: 720px; margin: 0 auto; color: var(--muted); font-size: 1.08rem; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 8px 30px rgba(25, 40, 70, 0.06);
+      padding: 24px;
+      margin-bottom: 22px;
+    }
+    label { display: block; font-weight: 700; margin-bottom: 8px; }
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      resize: vertical;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      font: 1.05rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--text);
+      background: #fff;
+    }
+    textarea:focus, button:focus, input:focus {
+      outline: 3px solid rgba(49, 87, 213, 0.22);
+      outline-offset: 2px;
+    }
+    .buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 15px;
+      font-size: 0.98rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: #e9edf3;
+      color: var(--text);
+    }
+    button.primary { background: var(--accent); color: white; }
+    button.primary:hover { background: var(--accent-hover); }
+    .display {
+      margin-top: 22px;
+      background: var(--soft);
+      border-radius: 14px;
+      padding: 22px;
+      text-align: center;
+    }
+    .current-label { color: var(--muted); font-size: 0.9rem; margin-bottom: 5px; }
+    .current-char {
+      font-size: clamp(2.6rem, 9vw, 5rem);
+      font-weight: 800;
+      min-height: 1.2em;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .spoken-name { font-weight: 700; margin-top: 4px; }
+    .progress { color: var(--muted); font-size: 0.92rem; margin-top: 8px; }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .control-group {
+      background: #fafbfd;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .control-group label { font-size: 0.94rem; margin-bottom: 7px; }
+    input[type="range"] { width: 100%; }
+    .checkline { display: flex; gap: 8px; align-items: flex-start; font-weight: 500; margin-top: 4px; }
+    .checkline input { margin-top: 4px; }
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+    }
+    .info-box {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      background: #fff;
+    }
+    .info-box h2 { margin-top: 0; }
+    ol, ul { padding-left: 1.25rem; }
+    .privacy { background: var(--success); border-color: #ccebd6; }
+    footer { text-align: center; color: var(--muted); font-size: 0.9rem; margin-top: 28px; }
+    .small { font-size: 0.92rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <h1>Command Spelling Assistant</h1>
+      <p class="subtitle">
+        A free, simple accessibility tool that spells commands and technical text one character at a time,
+        including spaces and symbols.
+      </p>
+    </header>
+
+    <section class="card" aria-labelledby="tool-heading">
+      <h2 id="tool-heading">Spell a command</h2>
+      <label for="commandInput">Paste or type the command or text you want spelled:</label>
+      <textarea id="commandInput" spellcheck="false" placeholder="Example: sudo chmod +x script.sh"></textarea>
+
+      <div class="buttons">
+        <button class="primary" id="startBtn">Spell Command</button>
+        <button id="pauseBtn">Pause</button>
+        <button id="repeatBtn">Repeat Character</button>
+        <button id="prevBtn">Previous</button>
+        <button id="nextBtn">Next</button>
+        <button id="restartBtn">Restart</button>
+      </div>
+
+      <div class="display" aria-live="polite">
+        <div class="current-label">Current character</div>
+        <div class="current-char" id="currentChar">—</div>
+        <div class="spoken-name" id="spokenName">Ready</div>
+        <div class="progress" id="progressText">0 of 0</div>
+      </div>
+
+      <div class="controls">
+        <div class="control-group">
+          <label for="speedRange">Speech speed</label>
+          <input type="range" id="speedRange" min="0.4" max="1.6" step="0.1" value="0.8" />
+          <div class="small">Current speed: <span id="speedValue">0.8×</span></div>
+        </div>
+        <div class="control-group">
+          <label class="checkline">
+            <input type="checkbox" id="positionToggle" />
+            <span>Say the character position too, such as “character 4, slash.”</span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="info-grid">
+        <div class="info-box">
+          <h2>How to use it</h2>
+          <ol>
+            <li>Copy the command or technical text from your directions.</li>
+            <li>Paste it into the box above.</li>
+            <li>Select <strong>Spell Command</strong>.</li>
+            <li>Listen as each character is spoken aloud.</li>
+            <li>Use <strong>Pause</strong>, <strong>Repeat</strong>, <strong>Previous</strong>, or <strong>Next</strong> whenever you need more time.</li>
+          </ol>
+        </div>
+
+        <div class="info-box">
+          <h2>What it says aloud</h2>
+          <p>
+            The assistant spells letters and numbers individually and names common symbols such as
+            <strong>space</strong>, <strong>slash</strong>, <strong>backslash</strong>, <strong>hyphen</strong>,
+            <strong>underscore</strong>, <strong>dot</strong>, <strong>pipe</strong>, <strong>plus</strong>,
+            <strong>asterisk</strong>, and more.
+          </p>
+          <p class="small">
+            This can be helpful for commands, code snippets, file paths, URLs, and other text where every character matters.
+          </p>
+        </div>
+
+        <div class="info-box privacy">
+          <h2>Privacy</h2>
+          <p>
+            The text you paste into this tool is processed in your browser. It is not uploaded, saved, or sent anywhere by this page.
+          </p>
+        </div>
+
+        <div class="info-box">
+          <h2>About</h2>
+          <p>
+            Command Spelling Assistant was created as a simple accessibility aid for learners who benefit from hearing
+            technical text spelled out character by character.
+          </p>
+          <p>
+            It is free to use, requires no account, and is designed to reduce visual tracking demands when copying precise commands.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Free to use • No account required • Works in modern browsers
+    </footer>
+  </main>
+
+  <script>
+    const input = document.getElementById('commandInput');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const repeatBtn = document.getElementById('repeatBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const currentChar = document.getElementById('currentChar');
+    const spokenName = document.getElementById('spokenName');
+    const progressText = document.getElementById('progressText');
+    const speedRange = document.getElementById('speedRange');
+    const speedValue = document.getElementById('speedValue');
+    const positionToggle = document.getElementById('positionToggle');
+
+    let chars = [];
+    let index = 0;
+    let isPaused = false;
+    let session = 0;
+
+    const names = {
+      ' ': 'space', '\n': 'new line', '\t': 'tab', '/': 'slash', '\\': 'backslash',
+      '-': 'hyphen', '_': 'underscore', '.': 'dot', ',': 'comma', ':': 'colon',
+      ';': 'semicolon', '|': 'pipe', '+': 'plus', '=': 'equals', '*': 'asterisk',
+      '&': 'ampersand', '%': 'percent', '$': 'dollar sign', '#': 'hash', '@': 'at sign',
+      '!': 'exclamation mark', '?': 'question mark', '~': 'tilde', '^': 'caret',
+      '<': 'less than', '>': 'greater than', '(': 'left parenthesis', ')': 'right parenthesis',
+      '[': 'left bracket', ']': 'right bracket', '{': 'left brace', '}': 'right brace',
+      '"': 'double quote', "'": 'single quote', '`': 'backtick'
+    };
+
+    function getName(ch) { return names[ch] || ch; }
+    function displayChar(ch) {
+      if (ch === ' ') return '␠';
+      if (ch === '\n') return '↵';
+      if (ch === '\t') return '⇥';
+      return ch;
+    }
+    function cancelSpeech() { window.speechSynthesis.cancel(); }
+    function updateDisplay() {
+      if (!chars.length || index < 0 || index >= chars.length) {
+        currentChar.textContent = '—';
+        spokenName.textContent = 'Ready';
+        progressText.textContent = `0 of ${chars.length}`;
+        return;
+      }
+      const ch = chars[index];
+      currentChar.textContent = displayChar(ch);
+      spokenName.textContent = getName(ch);
+      progressText.textContent = `${index + 1} of ${chars.length}`;
+    }
+    function speakAtCurrent(advance = false, localSession = session) {
+      if (!chars.length || index < 0 || index >= chars.length) return;
+      const ch = chars[index];
+      const name = getName(ch);
+      updateDisplay();
+      const utterance = new SpeechSynthesisUtterance(
+        positionToggle.checked ? `character ${index + 1}, ${name}` : name
+      );
+      utterance.rate = parseFloat(speedRange.value);
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      utterance.onend = () => {
+        if (localSession !== session || isPaused || !advance) return;
+        if (index < chars.length - 1) {
+          index++;
+          const delay = [' ', '\n', '\t', '/', '\\', '-', '_', '.', ',', ':', ';', '|', '+', '='].includes(chars[index - 1]) ? 420 : 250;
+          setTimeout(() => {
+            if (localSession === session && !isPaused) speakAtCurrent(true, localSession);
+          }, delay);
+        } else {
+          spokenName.textContent = 'Finished';
+        }
+      };
+      window.speechSynthesis.speak(utterance);
+    }
+    function loadText() {
+      chars = Array.from(input.value);
+      index = 0;
+      isPaused = false;
+      pauseBtn.textContent = 'Pause';
+      updateDisplay();
+    }
+
+    startBtn.addEventListener('click', () => {
+      cancelSpeech();
+      session++;
+      loadText();
+      if (!chars.length) {
+        spokenName.textContent = 'Enter some text first';
+        return;
+      }
+      speakAtCurrent(true, session);
+    });
+    pauseBtn.addEventListener('click', () => {
+      if (!chars.length) return;
+      if (!isPaused) {
+        isPaused = true;
+        cancelSpeech();
+        session++;
+        pauseBtn.textContent = 'Resume';
+      } else {
+        isPaused = false;
+        pauseBtn.textContent = 'Pause';
+        session++;
+        speakAtCurrent(true, session);
+      }
+    });
+    repeatBtn.addEventListener('click', () => {
+      if (!chars.length) loadText();
+      cancelSpeech();
+      session++;
+      speakAtCurrent(false, session);
+    });
+    prevBtn.addEventListener('click', () => {
+      if (!chars.length) loadText();
+      cancelSpeech();
+      session++;
+      isPaused = true;
+      pauseBtn.textContent = 'Resume';
+      index = Math.max(0, index - 1);
+      updateDisplay();
+      speakAtCurrent(false, session);
+    });
+    nextBtn.addEventListener('click', () => {
+      if (!chars.length) loadText();
+      cancelSpeech();
+      session++;
+      isPaused = true;
+      pauseBtn.textContent = 'Resume';
+      index = Math.min(chars.length - 1, index + 1);
+      updateDisplay();
+      speakAtCurrent(false, session);
+    });
+    restartBtn.addEventListener('click', () => {
+      cancelSpeech();
+      session++;
+      loadText();
+      if (chars.length) speakAtCurrent(true, session);
+    });
+    speedRange.addEventListener('input', () => {
+      speedValue.textContent = `${speedRange.value}×`;
+    });
+    updateDisplay();
+  </script>
+</body>
+</html>
