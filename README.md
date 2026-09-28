@@ -10,6 +10,8 @@ Use the tool here:
 
 https://kanders2002.github.io/command-spelling-assistant/
 
+<img width="1920" height="2755" alt="image" src="https://github.com/user-attachments/assets/9c353383-01a8-4849-9234-c687b9ae5a6b" />
+
 ## What It Does
 
 Paste a command or technical string into the tool and select **Spell Command**.
